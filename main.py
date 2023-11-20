@@ -45,6 +45,22 @@ def ask_gpt(mensagens_formatadas):
         return "Desculpe, não consegui processar sua solicitação."
 
 
+def dividir_resposta(resposta, limite=2000):
+    """Divide a resposta em partes, cada uma com no máximo 'limite' caracteres."""
+    partes = []
+    while len(resposta) > 0:
+        if len(resposta) > limite:
+            ponto_quebra = resposta.rfind(" ", 0, limite)
+            if ponto_quebra == -1:
+                ponto_quebra = limite
+            partes.append(resposta[:ponto_quebra])
+            resposta = resposta[ponto_quebra:]
+        else:
+            partes.append(resposta)
+            break
+    return partes
+
+
 @bot.event
 async def on_ready():
     print(f"O {bot.user.name} ficou online!")
@@ -55,7 +71,6 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    # Verificar se o bot foi mencionado na mensagem
     if bot.user in message.mentions:
         async with message.channel.typing():
             historico = await buscar_historico_canal(message.channel)
@@ -66,7 +81,9 @@ async def on_message(message):
                 return ask_gpt(historico_com_mensagem_atual)
 
             resposta = await asyncio.get_event_loop().run_in_executor(None, responder)
-            await message.channel.send(resposta)
+            # Dividir a resposta se necessário e enviar cada parte
+            for parte in dividir_resposta(resposta):
+                await message.channel.send(parte)
 
 
 bot.run(DISCORD_BOT_TOKEN)
