@@ -55,16 +55,18 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    historico = await buscar_historico_canal(message.channel)
-    mensagem_atual = f"user: {message.clean_content}"
-    historico_com_mensagem_atual = historico + "\n" + mensagem_atual
+    # Verificar se o bot foi mencionado na mensagem
+    if bot.user in message.mentions:
+        async with message.channel.typing():
+            historico = await buscar_historico_canal(message.channel)
+            mensagem_atual = f"user: {message.clean_content}"
+            historico_com_mensagem_atual = historico + "\n" + mensagem_atual
 
-    def responder():
-        return ask_gpt(historico_com_mensagem_atual)
+            def responder():
+                return ask_gpt(historico_com_mensagem_atual)
 
-    async with message.channel.typing():
-        resposta = await asyncio.get_event_loop().run_in_executor(None, responder)
-        await message.channel.send(resposta)
+            resposta = await asyncio.get_event_loop().run_in_executor(None, responder)
+            await message.channel.send(resposta)
 
 
 bot.run(DISCORD_BOT_TOKEN)
