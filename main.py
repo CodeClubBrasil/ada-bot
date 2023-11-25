@@ -4,16 +4,33 @@ import openai
 import os
 from dotenv import load_dotenv
 import asyncio
+import requests
 
 load_dotenv()
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+CCW_API_KEY = os.getenv("CCW_API_KEY")
 
 intents = discord.Intents.default()
 intents.messages = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 openai.api_key = OPENAI_API_KEY
+
+
+def buscar_clubes_ccw(bearer_token):
+    url = 'https://private-anon-a0f222e554-codeclubworldapiv2.apiary-mock.com/clubs'
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {bearer_token}'
+    }
+
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return response.json  # Retorna a lista de clubes
+    else:
+        print(f"Erro ao buscar clubes: {response.status_code}")
+        return None
 
 
 async def buscar_historico_canal(canal, limit=7):
@@ -70,6 +87,18 @@ async def on_ready():
 async def on_message(message):
     if message.author == bot.user:
         return
+
+    if message.content.startswith('!buscarclubes'):
+        async with message.channel.typing():
+            bearer_token = CCW_API_KEY
+            clubes = buscar_clubes_ccw(bearer_token)
+            if clubes:
+                resposta = "Clubes encontrados:\n" + \
+                    "\n".join([clube['name'] for clube in clubes]
+                              )  # Exemplo simples de formatação
+            else:
+                resposta = "Não foi possível obter a lista de clubes."
+            await message.channel.send(resposta)
 
     if bot.user in message.mentions:
         async with message.channel.typing():
