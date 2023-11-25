@@ -94,7 +94,8 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    if message.content.startswith('!buscarclubes'):
+    # Verificar se o bot foi mencionado e se o comando é !buscarclubes
+    if bot.user in message.mentions and '!buscarclubes' in message.content:
         async with message.channel.typing():
             clubes = buscar_clubes_ccw(CCW_API_KEY)
             if clubes:
@@ -102,7 +103,9 @@ async def on_message(message):
             else:
                 resposta = "Não foi possível obter a lista de clubes."
             await message.channel.send(resposta)
+        return
 
+    # Lógica para lidar com outras menções ao bot
     if bot.user in message.mentions:
         async with message.channel.typing():
             historico = await buscar_historico_canal(message.channel)
@@ -113,9 +116,9 @@ async def on_message(message):
                 return ask_gpt(historico_com_mensagem_atual)
 
             resposta = await asyncio.get_event_loop().run_in_executor(None, responder)
-            # Dividir a resposta se necessário e enviar cada parte
             for parte in dividir_resposta(resposta):
                 await message.channel.send(parte)
+        return
 
 
 bot.run(DISCORD_BOT_TOKEN)
