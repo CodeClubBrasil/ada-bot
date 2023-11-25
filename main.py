@@ -4,10 +4,12 @@ import openai
 import os
 from dotenv import load_dotenv
 import asyncio
+import requests
 
 load_dotenv()
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+CCW_API_KEY = os.getenv("CCW_API_KEY")
 
 intents = discord.Intents.default()
 intents.messages = True
@@ -15,6 +17,27 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 openai.api_key = OPENAI_API_KEY
 
+
+def buscar_clubes_ccw(bearer_token, country_code='BR', max_pages=10):
+    clubes = []
+    base_url = 'https://api.codeclubworld.org/clubs'
+
+    for pageNumber in range(max_pages):
+        url = f"{base_url}?page={pageNumber}&in_country={country_code}"
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {bearer_token}'
+        }
+
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            # Adiciona os clubes da página atual à lista total
+            clubes.extend(response.json())
+        else:
+            print(f"Erro na página {pageNumber}: {response.status_code}")
+            break  # Para a iteração se houver um erro
+
+    return clubes
 
 async def buscar_historico_canal(canal, limit=7):
     historico = []
@@ -70,6 +93,15 @@ async def on_ready():
 async def on_message(message):
     if message.author == bot.user:
         return
+
+    if message.content.startswith('!buscarclubes'):
+        async with message.channel.typing():
+            clubes = buscar_clubes_ccw(CCW_API_KEY)
+            if clubes:
+                resposta = "Clubes encontrados:\n" + "\n".join([clube['name'] for clube in clubes])  # Exemplo de formatação
+            else:
+                resposta = "Não foi possível obter a lista de clubes."
+            await message.channel.send(resposta)
 
     if bot.user in message.mentions:
         async with message.channel.typing():
