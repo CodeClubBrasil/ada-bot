@@ -18,20 +18,26 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 openai.api_key = OPENAI_API_KEY
 
 
-def buscar_clubes_ccw(bearer_token):
-    url = 'https://private-anon-a0f222e554-codeclubworldapiv2.apiary-mock.com/clubs'
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {bearer_token}'
-    }
+def buscar_clubes_ccw(bearer_token, country_code='BR', max_pages=10):
+    clubes = []
+    base_url = 'https://api.codeclubworld.org/clubs'
 
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        return response.json  # Retorna a lista de clubes
-    else:
-        print(f"Erro ao buscar clubes: {response.status_code}")
-        return None
+    for pageNumber in range(max_pages):
+        url = f"{base_url}?page={pageNumber}&in_country={country_code}"
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {bearer_token}'
+        }
 
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            # Adiciona os clubes da página atual à lista total
+            clubes.extend(response.json())
+        else:
+            print(f"Erro na página {pageNumber}: {response.status_code}")
+            break  # Para a iteração se houver um erro
+
+    return clubes
 
 async def buscar_historico_canal(canal, limit=7):
     historico = []
@@ -90,12 +96,9 @@ async def on_message(message):
 
     if message.content.startswith('!buscarclubes'):
         async with message.channel.typing():
-            bearer_token = CCW_API_KEY
-            clubes = buscar_clubes_ccw(bearer_token)
+            clubes = buscar_clubes_ccw(CCW_API_KEY)
             if clubes:
-                resposta = "Clubes encontrados:\n" + \
-                    "\n".join([clube['name'] for clube in clubes]
-                              )  # Exemplo simples de formatação
+                resposta = "Clubes encontrados:\n" + "\n".join([clube['name'] for clube in clubes])  # Exemplo de formatação
             else:
                 resposta = "Não foi possível obter a lista de clubes."
             await message.channel.send(resposta)
