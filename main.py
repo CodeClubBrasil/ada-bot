@@ -18,12 +18,21 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 openai.api_key = OPENAI_API_KEY
 
 
-def buscar_clubes_ccw(bearer_token, country_code='BR', max_pages=10):
+def formatar_clube(clube):
+    nome_clube = clube['name']
+    bairro = clube['venue']['address']['address_2']
+    cidade = clube['venue']['address']['city']
+    estado = clube['venue']['address']['region']
+    nome_lider = clube['contact']['name']
+    return f"{nome_clube} | {bairro} {cidade} {estado} | {nome_lider}"
+
+
+def buscar_clubes_ccw(bearer_token, country_code='BR', estado='active', cidade=None, max_pages=10):
     clubes = []
     base_url = 'https://api.codeclubworld.org/clubs'
 
     for pageNumber in range(max_pages):
-        url = f"{base_url}?page={pageNumber}&in_country={country_code}"
+        url = f"{base_url}?page={pageNumber}&in_country={country_code}&state={estado}"
         headers = {
             'Content-Type': 'application/json',
             'Authorization': f'Bearer {bearer_token}'
@@ -31,13 +40,35 @@ def buscar_clubes_ccw(bearer_token, country_code='BR', max_pages=10):
 
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
-            # Adiciona os clubes da página atual à lista total
-            clubes.extend(response.json())
+            dados_clubes = response.json()
+            if cidade:
+                # Normaliza a cidade para comparação
+                cidade_normalizada = cidade.lower()
+                clubes_cidade = [formatar_clube(
+                    clube) for clube in dados_clubes if clube['venue']['address']['city'].lower() == cidade_normalizada]
+            else:
+                clubes_cidade = [formatar_clube(clube)
+                                 for clube in dados_clubes]
+            clubes.extend(clubes_cidade)
         else:
             print(f"Erro na página {pageNumber}: {response.status_code}")
-            break  # Para a iteração se houver um erro
+            break
 
     return clubes
+
+
+def dividir_mensagens(clubes, limite=4000):
+    mensagens = []
+    mensagem_atual = ""
+    for clube in clubes:
+        if len(mensagem_atual) + len(clube) > limite:
+            mensagens.append(mensagem_atual)
+            mensagem_atual = clube
+        else:
+            mensagem_atual += clube + "\n"
+    mensagens.append(mensagem_atual)
+    return mensagens
+
 
 async def buscar_historico_canal(canal, limit=7):
     historico = []
@@ -95,14 +126,19 @@ async def on_message(message):
         return
 
     # Verificar se o bot foi mencionado e se o comando é !buscarclubes
-    if bot.user in message.mentions and '!buscarclubes' in message.content:
+    if bot.user in message.mentions and message.content.startswith('!buscarclubes'):
         async with message.channel.typing():
-            clubes = buscar_clubes_ccw(CCW_API_KEY)
+            # Extrair o nome da cidade do comando
+            partes = message.content.split()
+            cidade = partes[2] if len(partes) > 2 else None
+
+            clubes = buscar_clubes_ccw(CCW_API_KEY, cidade=cidade)
             if clubes:
-                resposta = "Clubes encontrados:\n" + "\n".join([clube['name'] for clube in clubes])  # Exemplo de formatação
+                partes = dividir_mensagens(clubes)
+                for parte in partes:
+                    await message.channel.send(parte)
             else:
-                resposta = "Não foi possível obter a lista de clubes."
-            await message.channel.send(resposta)
+                await message.channel.send(f"Não foi possível obter a lista de clubes para a cidade {cidade}.")
         return
 
     # Lógica para lidar com outras menções ao bot
