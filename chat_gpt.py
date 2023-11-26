@@ -1,10 +1,14 @@
+import asyncio
 import openai
 from config import OPENAI_API_KEY
 
 openai.api_key = OPENAI_API_KEY
 
+async def ask_gpt_async(mensagens_formatadas):
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, ask_gpt_sync, mensagens_formatadas)
 
-def ask_gpt(mensagens_formatadas):
+def ask_gpt_sync(mensagens_formatadas):
     try:
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
