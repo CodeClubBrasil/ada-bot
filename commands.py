@@ -3,7 +3,7 @@ import discord
 from discord.ext import commands
 from api_client import buscar_clubes_ccw
 from utils import dividir_mensagens
-from chat_gpt import ask_gpt
+from chat_gpt import ask_gpt_async
 from config import CCW_API_KEY
 
 intents = discord.Intents.default()
@@ -53,4 +53,10 @@ async def handle_commands(bot, message):
             mensagem_atual = f"user: {message.clean_content}"
             historico_com_mensagem_atual = historico + "\n" + mensagem_atual
 
-            resposta = await ask_gpt(historico_com_mensagem_atual)
+            # Assumindo que ask_gpt é assíncrona
+            resposta = await ask_gpt_async(historico_com_mensagem_atual)
+            partes_resposta = dividir_mensagens(
+                [resposta])  # Dividir a resposta
+            for parte in partes_resposta:
+                await message.channel.send(parte)
+        return
