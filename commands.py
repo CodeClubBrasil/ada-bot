@@ -47,7 +47,7 @@ async def handle_commands(bot, message):
         return
 
     # Lógica para lidar com outras menções ao bot usando ChatGPT
-    if bot.user in message.mentions:
+    if bot.user in message.mentions and message.content.startswith('!duvida'):
         async with message.channel.typing():
             historico = await buscar_historico_canal(message.channel)
             mensagem_atual = f"user: {message.clean_content}"
