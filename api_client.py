@@ -1,4 +1,5 @@
 import requests
+import discord
 
 
 def formatar_clube(clube):
@@ -7,11 +8,19 @@ def formatar_clube(clube):
     cidade = clube['venue']['address']['city']
     estado = clube['venue']['address']['region']
     nome_lider = clube['contact']['name']
-    return f"{nome_clube} | {bairro} {cidade} {estado} | {nome_lider}"
+
+    embed = discord.Embed(
+        title=nome_clube,
+        colour=discord.Colour.green()
+    )
+    embed.add_field(name="Cidade", value=cidade, inline=True)
+    embed.add_field(name="Estado", value=estado, inline=True)
+    embed.add_field(name="Responsável:", value=nome_lider, inline=True)
+
+    return embed
 
 
 def buscar_clubes_ccw(bearer_token, country_code='BR', estado='active', cidade=None, max_pages=10):
-    # ... [implementação da função buscar_clubes_ccw] ...
     clubes = []
     base_url = 'https://api.codeclubworld.org/clubs'
 
@@ -26,17 +35,14 @@ def buscar_clubes_ccw(bearer_token, country_code='BR', estado='active', cidade=N
         if response.status_code == 200:
             dados_clubes = response.json()
             if cidade:
-                # Normaliza a cidade para comparação
                 cidade_normalizada = cidade.lower()
-                clubes_cidade = [formatar_clube(
-                    clube) for clube in dados_clubes if clube['venue']['address']['city'].lower() == cidade_normalizada]
+                # Adicionar clubes filtrados por cidade à lista
+                clubes.extend([clube for clube in dados_clubes if clube['venue']['address']['city'].lower() == cidade_normalizada])
             else:
-                clubes_cidade = [formatar_clube(clube)
-                                 for clube in dados_clubes]
-            clubes.extend(clubes_cidade)
+                # Adicionar todos os clubes à lista
+                clubes.extend(dados_clubes)
         else:
             print(f"Erro na página {pageNumber}: {response.status_code}")
             break
 
     return clubes
-

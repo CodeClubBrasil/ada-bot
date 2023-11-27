@@ -3,6 +3,7 @@ import discord
 import re
 from discord.ext import commands
 from api_client import buscar_clubes_ccw
+from api_client import formatar_clube
 from utils import dividir_mensagens
 from chat_gpt import ask_gpt_async
 from config import CCW_API_KEY
@@ -28,8 +29,6 @@ async def handle_commands(bot, message):
         return
 
     print(f"COMMANDS Conteúdo da Mensagem: '{message.content}'")
-    # print(f"COMMANDS Autor: {message.author.name}")
-    # print(f"COMMANDS Canal: {message.channel.name}")
 
     # Usar expressão regular para remover a menção ao bot
     conteudo_limpo = re.sub(r'<@!?(\d+)>', '', message.content).strip()
@@ -50,17 +49,18 @@ async def handle_commands(bot, message):
 
 async def processar_buscar_clubes(message):
     async with message.channel.typing():
-        # Extrair o nome da cidade do comando
         partes = message.content.split()
-        cidade = partes[2] if len(partes) > 2 else None
+        
+        # Juntar todas as partes da cidade (tudo após o comando !buscarclubes)
+        cidade = " ".join(partes[2:]) if len(partes) > 2 else None
 
         clubes = buscar_clubes_ccw(CCW_API_KEY, cidade=cidade)
         if clubes:
-            partes = dividir_mensagens(clubes)
-            for parte in partes:
-                await message.channel.send(parte)
+            for clube in clubes:
+                embed_clube = formatar_clube(clube)
+                await message.channel.send(embed=embed_clube)
         else:
-            await message.channel.send(f"Não foi possível obter a lista de clubes para a cidade {cidade}.")
+            await message.channel.send("Não foram encontrados clubes para a cidade especificada.")
     return
 
 
