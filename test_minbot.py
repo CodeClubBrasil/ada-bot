@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 
-TOKEN = 'MTE3NTg4NzI2Njg4Mzg1MDI3MA.G2XaB8.yZJHqsFXdu1dl_rJ6dNmR6ZDeATThfhJAWuWeE'  
+TOKEN = ''  
 
 intents = discord.Intents.default()
 intents.messages = True
