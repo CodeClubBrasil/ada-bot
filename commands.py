@@ -1,17 +1,14 @@
 import asyncio
 import discord
+import re
 from discord.ext import commands
 from api_client import buscar_clubes_ccw
 from utils import dividir_mensagens
 from chat_gpt import ask_gpt_async
 from config import CCW_API_KEY
 
-intents = discord.Intents.default()
-intents.messages = True
-bot = commands.Bot(command_prefix="!", intents=intents)
 
-
-async def buscar_historico_canal(canal, limit=7):
+async def buscar_historico_canal(bot, canal, limit=7):
     historico = []
 
     async for message in canal.history(limit=limit, oldest_first=False):
@@ -30,33 +27,54 @@ async def handle_commands(bot, message):
     if message.author == bot.user:
         return
 
-    # Verificar se o bot foi mencionado e se o comando é !buscarclubes
-    if bot.user in message.mentions and message.content.startswith('!buscarclubes'):
-        async with message.channel.typing():
-            # Extrair o nome da cidade do comando
-            partes = message.content.split()
-            cidade = partes[2] if len(partes) > 2 else None
+    print(f"COMMANDS Conteúdo da Mensagem: '{message.content}'")
+    # print(f"COMMANDS Autor: {message.author.name}")
+    # print(f"COMMANDS Canal: {message.channel.name}")
 
-            clubes = buscar_clubes_ccw(CCW_API_KEY, cidade=cidade)
-            if clubes:
-                partes = dividir_mensagens(clubes)
-                for parte in partes:
-                    await message.channel.send(parte)
-            else:
-                await message.channel.send(f"Não foi possível obter a lista de clubes para a cidade {cidade}.")
+    # Usar expressão regular para remover a menção ao bot
+    conteudo_limpo = re.sub(r'<@!?(\d+)>', '', message.content).strip()
+    print(f"Conteúdo Limpo da Mensagem: '{conteudo_limpo}'")
+
+    # Verificar se o comando é !buscarclubes
+    if conteudo_limpo.startswith('!buscarclubes'):
+        print("Comando !buscarclubes detectado")
+        await processar_buscar_clubes(message)
         return
 
-    # Lógica para lidar com outras menções ao bot usando ChatGPT
-    if bot.user in message.mentions and message.content.startswith('!duvida'):
-        async with message.channel.typing():
-            historico = await buscar_historico_canal(message.channel)
-            mensagem_atual = f"user: {message.clean_content}"
-            historico_com_mensagem_atual = historico + "\n" + mensagem_atual
+    # Verificar se o comando é !duvida
+    elif conteudo_limpo.startswith('!duvida'):
+        print("Comando !duvida detectado")
+        await processar_duvida(bot, message)
+        return
 
-            # Assumindo que ask_gpt é assíncrona
-            resposta = await ask_gpt_async(historico_com_mensagem_atual)
-            partes_resposta = dividir_mensagens(
-                [resposta])  # Dividir a resposta
-            for parte in partes_resposta:
+
+async def processar_buscar_clubes(message):
+    async with message.channel.typing():
+        # Extrair o nome da cidade do comando
+        partes = message.content.split()
+        cidade = partes[2] if len(partes) > 2 else None
+
+        clubes = buscar_clubes_ccw(CCW_API_KEY, cidade=cidade)
+        if clubes:
+            partes = dividir_mensagens(clubes)
+            for parte in partes:
                 await message.channel.send(parte)
-        return
+        else:
+            await message.channel.send(f"Não foi possível obter a lista de clubes para a cidade {cidade}.")
+    return
+
+
+async def processar_duvida(bot, message):
+    async with message.channel.typing():
+
+        historico = await buscar_historico_canal(bot, message.channel)
+        mensagem_atual = f"user: {message.clean_content}"
+        historico_com_mensagem_atual = historico + "\n" + mensagem_atual
+
+        # Assumindo que ask_gpt é assíncrona
+        resposta = await ask_gpt_async(historico_com_mensagem_atual)
+        partes_resposta = dividir_mensagens(
+            [resposta])  # Dividir a resposta
+        for parte in partes_resposta:
+            await message.channel.send(parte)
+    return
